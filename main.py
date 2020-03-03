@@ -21,9 +21,10 @@ if len(inputnames) == 0:
 inport = mido.open_input(inputnames[0])
 
 def sine(frequency, duration, amplitude):
+	global sample_index
 	l = []
 	for i in range(BLOCK_SIZE):
-		v = sin(2*pi*i/SAMPLE_RATE*frequency)*SAMPLE_MAX*amplitude
+		v = sin(2*pi*(i+sample_index)/SAMPLE_RATE*frequency)*SAMPLE_MAX*amplitude
 		l.append(int(v))
 	return l
 
@@ -59,6 +60,8 @@ notes = {}
 def getNoteFrequency(index):
 	return (2**(1/12))**(index-57) * 440
 
+sample_index = 0
+
 while stream.active:
 
 	for msg in inport.iter_pending():
@@ -88,6 +91,8 @@ while stream.active:
 		bytestream = np.zeros(BLOCK_SIZE, dtype=np.int16)
 	else:
 		bytestream = np.mean(channels, axis=0)
+
+	sample_index += BLOCK_SIZE
 
 	#print(bytestream)
 	#sleep(1)
