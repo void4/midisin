@@ -20,10 +20,10 @@ if len(inputnames) == 0:
 
 inport = mido.open_input(inputnames[0])
 
-def sine(frequency, duration):
+def sine(frequency, duration, amplitude):
 	l = []
 	for i in range(BLOCK_SIZE):
-		v = sin(2*pi*i/SAMPLE_RATE*frequency)*SAMPLE_MAX
+		v = sin(2*pi*i/SAMPLE_RATE*frequency)*SAMPLE_MAX*amplitude
 		l.append(int(v))
 	return l
 
@@ -62,19 +62,19 @@ def getNoteFrequency(index):
 while stream.active:
 
 	for msg in inport.iter_pending():
-		#print(msg)
+		print(msg)
 		#print(msg.type)
 		if msg.type == "note_on":
-			notes[msg.note] = True
+			notes[msg.note] = [True, msg.velocity]
 		elif msg.type == "note_off":
-			notes[msg.note] = False
+			notes[msg.note] = [False]
 
-	print(notes)
+	#print(notes)
 
 	channels = []#np.empty(shape=(0, BLOCK_SIZE), dtype=np.int16)
-	for note, active in notes.items():
-		if active:
-			s = sine(getNoteFrequency(note), 1)
+	for note, data in notes.items():
+		if data[0]:
+			s = sine(getNoteFrequency(note), 1, data[1]/128)
 			#channel = np.asarray(s, dtype=np.int16)#
 			#channels = np.append(channels, channel, axis=0)
 			channels.append(s)
