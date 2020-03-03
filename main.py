@@ -56,6 +56,9 @@ stream.start()
 
 notes = {}
 
+def getNoteFrequency(index):
+	return (2**(1/12))**(index-57) * 440
+
 while stream.active:
 
 	for msg in inport.iter_pending():
@@ -66,10 +69,12 @@ while stream.active:
 		elif msg.type == "note_off":
 			notes[msg.note] = False
 
+	print(notes)
+
 	channels = []#np.empty(shape=(0, BLOCK_SIZE), dtype=np.int16)
 	for note, active in notes.items():
 		if active:
-			s = sine(note*10, 1)
+			s = sine(getNoteFrequency(note), 1)
 			#channel = np.asarray(s, dtype=np.int16)#
 			#channels = np.append(channels, channel, axis=0)
 			channels.append(s)
