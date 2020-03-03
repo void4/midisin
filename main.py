@@ -4,6 +4,7 @@ import sounddevice as sd
 from math import sin, pi
 
 SAMPLE_RATE = 44100
+BLOCK_SIZE = SAMPLE_RATE // 10
 SAMPLE_WIDTH = 2
 SAMPLE_MAX = (2**8)**SAMPLE_WIDTH//2-1
 
@@ -17,49 +18,76 @@ inport = mido.open_input(inputnames[0])
 
 def sine(frequency, duration):
 	l = []
-	for i in range(SAMPLE_RATE*duration):
+	for i in range(BLOCK_SIZE):
 		v = sin(2*pi*i/SAMPLE_RATE*frequency)*SAMPLE_MAX
 		l.append(int(v))
 	return l
 
-bytestream = None
+bytestream = np.zeros(BLOCK_SIZE, dtype=np.int16)
 
 def callback(outdata, frames, time, status):
 	global bytestream
-	if status:
-		print(status)
-	outdata[:] = bytestream
+	#if status:
+	#print(status)
 
-CHUNK = SAMPLE_RATE
+	#print(status.output_underflow)
 
-pa = pyaudio.PyAudio()
+	if len(bytestream) > 0:
+		outdata[:len(bytestream)] = bytestream.reshape(BLOCK_SIZE, 1)
 
-print('\n'.join([y['name']
-	for y in [pa.get_device_info_by_index(x)
-	for x in range(pa.get_device_count())]]))
+		if len(bytestream) < len(outdata):
+			missing = (len(outdata) - len(bytestream))
+			filler = numpy.zeros(missing, dtype=np.int16)
+			outdata[len(bytestream):] = filler
 
-stream = pa.open(
-	format=pa.get_format_from_width(width=SAMPLE_WIDTH),
+def finished_callback():
+	print("DONE")
+
+stream = sd.OutputStream(samplerate=SAMPLE_RATE,
 	channels=1,
-	rate=SAMPLE_RATE,
-	output=True,
-	#frames_per_buffer=CHUNK,
-	stream_callback=playingCallback)
+	dtype=np.int16,
+	blocksize=BLOCK_SIZE,
+	callback=callback,
+	finished_callback=finished_callback)
 
-stream.start_stream()
+stream.start()
 
-while stream.is_active():
+from time import sleep
+#while True:#stream.is_active():
+note = 40
+
+notes = {}
+
+while stream.active:
+	#print("llop")
+
 	for msg in inport.iter_pending():
-		print(msg)
+		#print(msg)
+		#print(msg.type)
+		if msg.type == "note_on":
+			notes[msg.note] = True
+		elif msg.type == "note_off":
+			notes[msg.note] = False
 
-	s = sine(440, 1)
-	bytestream = np.asarray(s, dtype=np.int16)#
+	channels = []#np.empty(shape=(0, BLOCK_SIZE), dtype=np.int16)
+	for note, active in notes.items():
+		if active:
+			s = sine(note*10, 1)
+			#channel = np.asarray(s, dtype=np.int16)#
+			#channels = np.append(channels, channel, axis=0)
+			channels.append(s)
+
+	channels = np.asarray(channels, dtype=np.int16)
+
+	#if len(channels) > 0:
+	#	print(channels)
+
+	if len(channels) == 0:
+		bytestream = np.zeros(BLOCK_SIZE, dtype=np.int16)
+	else:
+		bytestream = np.mean(channels, axis=0)
+	#print(bytestream)
+	#print(bytestream)
+	#sleep(1)
 	# sounddevice takes care of that for us: .tobytes()
 	# This blocks, using callbacks instead: stream.write(bytestream)
-
-
-
-stream.stop_stream()
-stream.close()
-
-pa.terminate()
