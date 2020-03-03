@@ -1,7 +1,10 @@
-import mido
-import numpy as np
-import sounddevice as sd
+from time import sleep
 from math import sin, pi
+
+import numpy as np
+
+import sounddevice as sd
+import mido
 
 SAMPLE_RATE = 44100
 BLOCK_SIZE = SAMPLE_RATE // 10
@@ -12,7 +15,8 @@ inputnames = mido.get_input_names()
 print("\n".join(inputnames))
 
 if len(inputnames) == 0:
-	exit(0)
+	print("No inputs!")
+	exit(1)
 
 inport = mido.open_input(inputnames[0])
 
@@ -27,8 +31,6 @@ bytestream = np.zeros(BLOCK_SIZE, dtype=np.int16)
 
 def callback(outdata, frames, time, status):
 	global bytestream
-	#if status:
-	#print(status)
 
 	#print(status.output_underflow)
 
@@ -52,14 +54,9 @@ stream = sd.OutputStream(samplerate=SAMPLE_RATE,
 
 stream.start()
 
-from time import sleep
-#while True:#stream.is_active():
-note = 40
-
 notes = {}
 
 while stream.active:
-	#print("llop")
 
 	for msg in inport.iter_pending():
 		#print(msg)
@@ -86,8 +83,6 @@ while stream.active:
 		bytestream = np.zeros(BLOCK_SIZE, dtype=np.int16)
 	else:
 		bytestream = np.mean(channels, axis=0)
-	#print(bytestream)
+
 	#print(bytestream)
 	#sleep(1)
-	# sounddevice takes care of that for us: .tobytes()
-	# This blocks, using callbacks instead: stream.write(bytestream)
